@@ -69,7 +69,7 @@ func _send_data(data):
 func set_text(string):
 	var data = {
 		"command": "set_text",
-		"parameter": string
+		"params": [string]
 	}
 	
 	_send_data(data)
@@ -78,7 +78,7 @@ func set_text(string):
 func set_animation(path):
 	var data = {
 		"command": "set_animation",
-		"parameter": _gif_to_hexa(path)
+		"params": [_gif_to_hexa(path)]
 	}
 	
 	_send_data(data)
