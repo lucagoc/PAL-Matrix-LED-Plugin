@@ -32,15 +32,13 @@ func send_animation_or_text(path, game_name):
 func _on_game_launched(id: int):
 	send_animation_or_text(GameList.GAME_LIST[id].path + gif_path, GameList.GAME_LIST[id].name)
 
-func _on_game_selected(id: int):
-	send_animation_or_text(GameList.GAME_LIST[id].path + gif_path, GameList.GAME_LIST[id].name)
-
 func _on_start_screensaver():
 	send_animation_or_text(fallback_animation_path, "Screensaver")
 	is_stopped = true
 
 func _on_stop_screensaver():
 	is_stopped = false
+	send_animation_or_text(fallback_animation_path, "Screensaver")
 
 func _on_ecomode_activated():
 	send_animation_or_text(ecomode_animation_path, "Eco mode")
@@ -61,7 +59,7 @@ func _gif_to_hexa(path):
 func _ready():
 	print("[LED] Plugin loaded successfully.")
 	BusEvent.connect("GAME_LAUNCHED", _on_game_launched)
-	BusEvent.connect("GAME_SELECTED", _on_game_selected)
+	BusEvent.connect("GAME_EXITED", _on_stop_screensaver)
 	BusEvent.connect("START_SCREENSAVER", _on_start_screensaver)
 	BusEvent.connect("STOP_SCREENSAVER", _on_stop_screensaver)
 	BusEvent.connect("ECOMODE_ACTIVATED", _on_ecomode_activated)
