@@ -56,13 +56,20 @@ func _gif_to_hexa(path):
 		file.close()
 		return data.hex_encode()
 
+func _on_game_list_loaded():
+	send_animation_or_text(fallback_animation_path, "Screensaver")
+
+func _on_game_exited(id: int):
+	send_animation_or_text(fallback_animation_path, "Screensaver")
+
 func _ready():
 	print("[LED] Plugin loaded successfully.")
 	BusEvent.connect("GAME_LAUNCHED", _on_game_launched)
-	BusEvent.connect("GAME_EXITED", _on_stop_screensaver)
+	BusEvent.connect("GAME_EXITED", _on_game_exited)
 	BusEvent.connect("START_SCREENSAVER", _on_start_screensaver)
 	BusEvent.connect("STOP_SCREENSAVER", _on_stop_screensaver)
 	BusEvent.connect("ECOMODE_ACTIVATED", _on_ecomode_activated)
+	BusEvent.connect("GAME_LIST_LOADED", _on_game_list_loaded)
 
 	# Configure buffer to send data
 	var send_timer = Timer.new()
