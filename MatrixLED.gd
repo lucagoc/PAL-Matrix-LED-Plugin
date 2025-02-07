@@ -12,6 +12,9 @@ var socket := WebSocketPeer.new()
 var last_command = null  # Buffer for the last command
 var is_stopped = false
 
+var reconnect_attempts = 0
+var reconnect_timer := Timer.new()
+
 func send_animation_or_text(path, game_name):
 	if is_stopped and game_name != "Eco mode":
 		return
@@ -44,18 +47,6 @@ func _on_ecomode_activated():
 	send_animation_or_text(ecomode_animation_path, "Eco mode")
 	is_stopped = true
 
-func _gif_to_hexa(path):
-	var file = FileAccess.open(path, FileAccess.READ)
-	if file:
-		var data = file.get_buffer(file.get_length())
-		file.close()
-		return data.hex_encode()
-	else:
-		file = FileAccess.open(fallback_animation_path, FileAccess.READ)
-		var data = file.get_buffer(file.get_length())
-		file.close()
-		return data.hex_encode()
-
 func _on_game_list_loaded():
 	send_animation_or_text(fallback_animation_path, "Screensaver")
 
@@ -78,20 +69,52 @@ func _ready():
 	send_timer.connect("timeout", _on_send_timer_timeout)
 	add_child(send_timer)
 
+	# Setup reconnect timer
+	reconnect_timer.one_shot = true
+	reconnect_timer.connect("timeout", _attempt_reconnect)
+	add_child(reconnect_timer)
+
+	_connect_to_server()
+	send_timer.start()
+
+func _gif_to_hexa(path):
+	var file = FileAccess.open(path, FileAccess.READ)
+	if file:
+		var data = file.get_buffer(file.get_length())
+		file.close()
+		return data.hex_encode()
+	else:
+		file = FileAccess.open(fallback_animation_path, FileAccess.READ)
+		var data = file.get_buffer(file.get_length())
+		file.close()
+		return data.hex_encode()
+
+func _connect_to_server():
 	if socket.connect_to_url(websocket_url) != OK:
-		printerr("[LED] Could not connect.")
-		send_timer.stop()
-		set_process(false)
+		printerr("[LED] Could not connect. Retrying in " + str(2**reconnect_attempts) + " seconds.")
+		_schedule_reconnect()
 	else:
 		print("[LED] Connected")
+		reconnect_attempts = 0  # Reset reconnect attempts on success
 		send_clear()
-		send_timer.start()
+
+func _schedule_reconnect():
+	reconnect_timer.wait_time = min(2 ** reconnect_attempts, 60)  # Exponential backoff, max 60s
+	reconnect_attempts += 1
+	reconnect_timer.start()
+
+func _attempt_reconnect():
+	print("[LED] Attempting to reconnect...")
+	_connect_to_server()
 
 func _process(delta):
 	socket.poll()
 	if socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		while socket.get_available_packet_count():
 			print("[DEBUG][LED] RECEIVED: ", socket.get_packet().get_string_from_ascii())
+	elif socket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
+		print("[LED] Connection lost. Scheduling reconnect...")
+		_schedule_reconnect()
 
 func _exit_tree():
 	socket.close()
@@ -105,10 +128,8 @@ func _send_data(data):
 	if socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		printerr("[LED] Could not send data, socket not open.")
 	else:
-		#print("[DEBUG][LED] SENDING: ", data)
 		socket.send_text(JSON.stringify(data))
 
-# Buffer the command and start the timer if not running
 func send_text(string):
 	last_command = {
 		"command": "send_text",
