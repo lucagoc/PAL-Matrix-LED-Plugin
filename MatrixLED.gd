@@ -48,7 +48,8 @@ func _on_ecomode_activated():
 	is_stopped = true
 
 func _on_game_list_loaded():
-	send_animation_or_text(fallback_animation_path, "Screensaver")
+	#send_animation_or_text(fallback_animation_path, "Screensaver")
+	return
 
 func _on_game_exited(id: int):
 	send_animation_or_text(fallback_animation_path, "Screensaver")
@@ -97,11 +98,15 @@ func _connect_to_server():
 		print("[LED] Connected")
 		reconnect_attempts = 0  # Reset reconnect attempts on success
 		send_clear()
+		_send_data(last_command)
+		send_animation(fallback_animation_path)
+
 
 func _schedule_reconnect():
-	reconnect_timer.wait_time = min(2 ** reconnect_attempts, 60)  # Exponential backoff, max 60s
-	reconnect_attempts += 1
-	reconnect_timer.start()
+	if reconnect_timer.is_stopped():
+		reconnect_timer.wait_time = min(2 ** reconnect_attempts, 60)  # Exponential backoff, max 60s
+		reconnect_attempts += 1
+		reconnect_timer.start()
 
 func _attempt_reconnect():
 	print("[LED] Attempting to reconnect...")
@@ -113,7 +118,6 @@ func _process(delta):
 		while socket.get_available_packet_count():
 			print("[DEBUG][LED] RECEIVED: ", socket.get_packet().get_string_from_ascii())
 	elif socket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
-		print("[LED] Connection lost. Scheduling reconnect...")
 		_schedule_reconnect()
 
 func _exit_tree():
